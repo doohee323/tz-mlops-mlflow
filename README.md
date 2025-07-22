@@ -106,7 +106,7 @@ jupyter-notebook notebooks/get-started.ipynb
 
 ```bash
 # 노트북을 Python 스크립트로 변환
-jupyter-nbconvert --to script notebooks/gettingstarted
+jupyter-nbconvert --to script notebooks/get-started.ipynb
 mv notebooks/get-started.py docker/get-started.py
 # get-started.py에 if __name__ == "__main__": 추가 필요
 
