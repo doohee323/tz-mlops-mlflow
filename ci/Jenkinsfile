@@ -1,0 +1,115 @@
+pipeline {
+    agent {
+        kubernetes {
+            label 'docker'
+            defaultContainer 'docker'
+        }
+    }
+    
+    environment {
+        GIT_BRANCH = "${env.BRANCH_NAME ?: env.GIT_BRANCH ?: env.CHANGE_BRANCH ?: 'main'}"
+        GIT_COMMITTER_EMAIL = "doohee323@gmail.com"
+
+        BUILD_NUMBER = "${env.BUILD_NUMBER ?: 'latest'}"
+        DOCKER_NAME = "drillquiz"
+        FRONT_DOCKER_NAME = "drillquiz-frontend"
+        APP_NAME = "drillquiz"
+        DEPLOYMENT_NAME = 'drillquiz'
+        NAMESPACE = "devops"
+        NODE_ENV = "development"
+        K8S_FILE = "k8s.yaml"
+
+        KUBECTL = "kubectl -n ${NAMESPACE}"
+        KUBECONFIG_CREDENTIALS_ID = 'kubeconfig-jenkins'
+
+        GIT_CREDENTIAL = 'github-token'
+        GITHUP_TOKEN = credentials('GITHUP_TOKEN')
+
+        REGISTRY = 'doohee323'
+        DOCKERHUB_CREDENTIALS_ID = 'DOCKERHUB_CREDENTIALS_ID'
+
+        VAULT_TOKEN = credentials('VAULT_TOKEN')
+        ARGOCD_ID = "admin"
+        ARGOCD_PASSWORD = credentials('ARGOCD_PASSWORD')
+        DOCKER_PASSWORD = credentials('DOCKER_PASSWORD')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                container('docker') {
+                    script {
+                        checkout scm
+                    }
+                }
+            }
+        }
+
+        stage('Build Frontend') {
+            steps {
+                container('docker') {
+                    script {
+                        try {
+                            echo "🚀 프론트엔드 빌드 시작..."
+                            sh '''
+                                export PATH=$PATH:.:
+                                chmod +x ci/k8s.sh
+                                ./ci/k8s.sh ${BUILD_NUMBER} ${GIT_BRANCH} ${NAMESPACE} build-frontend
+                            '''
+                        } catch (err) {
+                            echo "Frontend build failed: ${err}"
+                            error("Stopping pipeline due to frontend build failure..")
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Build & Push Backend Image') {
+            steps {
+                container('docker') {
+                    script {
+                        try {
+                            withDockerRegistry(credentialsId: "${DOCKERHUB_CREDENTIALS_ID}", url: '') {
+                                def image = "${REGISTRY}/${DOCKER_NAME}:${BUILD_NUMBER}"
+                                sh "cp -Rf Dockerfile.backend Dockerfile"
+                                sh "docker build -t ${image} ."
+
+                                echo "Pushing image: ${image}"
+                                sh "docker push ${image}"
+                            }
+                        } catch (err) {
+                            echo "Docker push failed: ${err}"
+                            error("Stopping pipeline due to push failure.")
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                container('kubectl') {
+                    script {
+                        try {
+                            withCredentials([file(credentialsId: "${KUBECONFIG_CREDENTIALS_ID}", variable: 'KUBECONFIG')]) {
+                                sh '''
+                                    export PATH=$PATH:.:
+                                    chmod +x ci/k8s.sh
+                                    echo "🚀 Kubernetes 배포 시작..."
+                                    echo "  BUILD_NUMBER: ${BUILD_NUMBER}"
+                                    echo "  GIT_BRANCH: ${GIT_BRANCH}"
+                                    echo "  NAMESPACE: ${NAMESPACE}"
+                                    ./ci/k8s.sh ${BUILD_NUMBER} ${GIT_BRANCH} ${NAMESPACE} deploy
+                                '''
+                            }
+                        } catch (err) {
+                            echo "kubectl failed: ${err}"
+                            error("Stopping pipeline due to kubectl failure.")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

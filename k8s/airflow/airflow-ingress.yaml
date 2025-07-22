@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: airflow-webserver-ingress
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/proxy-ssl-verify: 'false'
+#    nginx.ingress.kubernetes.io/ssl-redirect: 'false'
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: airflow-admin.k8s_domain
+    http:
+      paths:
+      - path: /
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: airflow-api-server
+            port:
+              number: 8080
+  tls:
+  - hosts:
+      - airflow-admin.k8s_domain
+    secretName: airflow-webserver-ingress-tls
