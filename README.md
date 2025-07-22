@@ -13,11 +13,11 @@ MLflow와 Airflow를 활용한 Machine Learning Operations (MLOps) 파이프라�
      ↓ (nbconvert)
 [Python 코드 변환 및 if __name__ 추가]
      ↓
-[Docker Image 빌드 및 Push]
+[Docker Image 빌드 및 Push]            => CI
      ↓
-[Airflow DAG 작성 및 GitOps 배포]
+[Airflow DAG 작성 및 GitOps 배포]       => CI
      ↓
-[Airflow UI에서 Trigger 및 모니터링]
+[Airflow UI에서 Trigger 및 모니터링]     => CI
 ```
 
 ## 📁 프로젝트 구조
@@ -34,9 +34,6 @@ tz-mlops-mlflow/
 ├── docker/
 │   └── Dockerfile                 # ML 코드 실행 환경
 ├── k8s                            # k8s airflow, mlflow 설치 참조용
-├── ci/                            # CI/CD 파이프라인
-│   ├── Jenkinsfile
-│   └── k8s.sh
 └── README.md                      # 프로젝트 문서
 ```
 
@@ -45,7 +42,6 @@ tz-mlops-mlflow/
 - **외부 MLflow 서버 연동**: 기존 MLflow 서버에 실험 결과 전송
 - **외부 Airflow 서버 연동**: 기존 Airflow 서버에서 DAG 실행
 - **Docker Containerization**: 재현 가능한 ML 환경 구성
-- **CI/CD Pipeline**: GitHub Actions를 통한 자동화된 빌드 및 배포
 - **Jupyter Notebook**: 실험 및 개발 환경
 
 ## 🛠️ 기술 스택
@@ -53,7 +49,6 @@ tz-mlops-mlflow/
 - **ML Framework**: MLflow, scikit-learn, pandas, numpy
 - **Orchestration**: Apache Airflow (외부 서버)
 - **Containerization**: Docker
-- **CI/CD**: GitHub Actions
 - **Language**: Python 3.10+
 
 ## 🔧 환경 설정
