@@ -37,5 +37,7 @@ export MLFLOW_TRACKING_URI="https://mlflow.new-nation.church"
 export MLFLOW_TRACKING_USERNAME="user"
 export MLFLOW_TRACKING_PASSWORD="xxx"
 
-papermill get-started.ipynb output.ipynb
+#jupyter-notebook notebooks/get-started.ipynb
+
+papermill notebooks/get-started.ipynb output.ipynb
 

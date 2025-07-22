@@ -61,7 +61,7 @@ tz-mlops-mlflow/
 ### 1. 작업 환경 만들기
 
 ```bash
-cd /Users/dhong/workspaces/tz-mlops-mlflow
+cd tz-mlops-mlflow
 rm -Rf venv
 pyenv install 3.10.13
 pyenv local 3.10.13
@@ -99,7 +99,12 @@ export AIRFLOW_API_URL=https://airflow-admin.new-nation.church
 
 ```bash
 # 실험용 노트북 실행
-jupyter notebook notebooks/get-started.ipynb
+export MLFLOW_TRACKING_URI=https://mlflow.new-nation.church
+export MLFLOW_EXPERIMENT_NAME=production_experiment
+export MLFLOW_TRACKING_USERNAME=user
+export MLFLOW_TRACKING_PASSWORD=xxxx
+
+jupyter-notebook notebooks/get-started.ipynb
 ```
 
 ### 1. Python 코드 준비
@@ -109,9 +114,14 @@ jupyter notebook notebooks/get-started.ipynb
 jupyter-nbconvert --to script notebooks/get-started.ipynb
 mv notebooks/get-started.py docker/get-started.py
 # get-started.py에 if __name__ == "__main__": 추가 필요
+
+# ML 코드 테스트
+pip3 install mlflow
+python ml_code/get-started.py
+
 ```
 
-### 2. Docker 이미지 빌드 및 Push
+### 2. ML 코드 Docker 이미지 빌드 및 Push
 
 ```bash
 cd docker
@@ -122,12 +132,6 @@ docker push doohee323/ml_job_dag:latest
 ### 3. Airflow DAG 작성
 
 `dags/ml_job_dag.py` 파일을 수정하여 외부 Airflow 서버에 맞게 설정:
-
-```python
-# 외부 Airflow 서버 설정
-AIRFLOW_API_URL = "https://airflow-admin.new-nation.church"
-MLFLOW_TRACKING_URI = "https://mlflow.new-nation.church"
-```
 
 ### 4. GitOps를 통한 Airflow DAG 배포
 
@@ -152,7 +156,6 @@ git push
 - **Docker 이미지**: `doohee323/ml_job_dag:latest`
 
 
-
 ## 🔍 외부 서버 접속 정보
 
 ### MLflow 서버
@@ -174,50 +177,3 @@ git push
 - DAG 실행 상태 확인
 - 태스크 성공/실패 로그
 - 워크플로우 성능 메트릭
-
-## 🧪 테스트
-
-### 로컬 테스트
-
-```bash
-# ML 코드 테스트
-python ml_code/get-started.py
-
-# Docker 컨테이너 테스트
-docker run -e MLFLOW_TRACKING_URI=https://mlflow.new-nation.church doohee323/ml_job_dag:latest
-```
-
-### CI/CD 테스트
-
-GitHub Actions를 통한 자동화된 테스트:
-- 코드 품질 검사 (flake8, black)
-- 단위 테스트 (pytest)
-- Docker 이미지 빌드 테스트
-
-## 🔒 보안 설정
-
-### 환경 변수 관리
-
-```bash
-MLFLOW_TRACKING_URI=https://mlflow.new-nation.church
-MLFLOW_TRACKING_TOKEN=your-token
-AIRFLOW_API_URL=https://airflow-admin.new-nation.church
-```
-
-### Docker 보안
-
-```bash
-# Docker 이미지 스캔
-docker scan doohee323/ml_job_dag:latest
-```
-
-## 🐛 문제 해결
-
-### 일반적인 문제들
-
-1. **MLflow 서버 연결 실패**
-   ```bash
-   # 연결 테스트
-   curl https://mlflow.new-nation.church/health
-   ```
-
