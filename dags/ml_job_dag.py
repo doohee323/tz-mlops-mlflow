@@ -27,14 +27,14 @@ with DAG(
     print(mlflow_password)
 
     k8s_task = KubernetesPodOperator(
-        namespace="airflow",  # 실행할 namespace
-        image="doohee323/ml_job_dag:latest",  # 사용할 컨테이너 이미지
+        namespace="airflow",  # namespace to run in
+        image="doohee323/ml_job_dag:latest",  # container image to use
         image_pull_policy="Always",
         labels={"foo": "bar"},
         name="ml_task",
         task_id="run_ml_task",
-        is_delete_operator_pod=True,  # 작업 완료 후 Pod 삭제
-        get_logs=True,                # 로그 출력
+        is_delete_operator_pod=True,  # delete pod after task completion
+        get_logs=True,                # output logs
         env_vars={
             "MLFLOW_TRACKING_URI": mlflow_uri,
             "MLFLOW_TRACKING_USERNAME": mlflow_username,
