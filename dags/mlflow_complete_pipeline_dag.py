@@ -10,6 +10,7 @@ from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.providers.http.operators.http import SimpleHttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
 from docker.types import Mount
+from airflow.models import Variable
 import requests
 import json
 import logging
@@ -37,6 +38,12 @@ dag = DAG(
     tags=['mlflow', 'mlops', 'pipeline'],
 )
 
+# Get MLflow configuration from Airflow Variables
+mlflow_uri = Variable.get("MLFLOW_TRACKING_URI")
+mlflow_username = Variable.get("MLFLOW_TRACKING_USERNAME")
+mlflow_password = Variable.get("MLFLOW_TRACKING_PASSWORD")
+mlflow_experiment = Variable.get("MLFLOW_EXPERIMENT_NAME", "production_experiment")
+
 # Task 1: Model Training
 train_model = DockerOperator(
     task_id='train_model',
@@ -51,10 +58,10 @@ train_model = DockerOperator(
         Mount(source='/path/to/models', target='/models', type='bind'),
     ],
     environment={
-        'MLFLOW_TRACKING_URI': 'https://mlflow.new-nation.church',
-        'MLFLOW_EXPERIMENT_NAME': 'production_experiment',
-        'MLFLOW_TRACKING_USERNAME': 'user',
-        'MLFLOW_TRACKING_PASSWORD': 'xxx',
+        'MLFLOW_TRACKING_URI': mlflow_uri,
+        'MLFLOW_EXPERIMENT_NAME': mlflow_experiment,
+        'MLFLOW_TRACKING_USERNAME': mlflow_username,
+        'MLFLOW_TRACKING_PASSWORD': mlflow_password,
     },
     dag=dag,
 )
@@ -65,8 +72,11 @@ def check_model_registration(**context):
     import mlflow
     from mlflow.tracking import MlflowClient
     
+    # Get MLflow configuration from Airflow Variables
+    mlflow_uri = Variable.get("MLFLOW_TRACKING_URI")
+    
     # Setup MLflow connection
-    mlflow.set_tracking_uri("https://mlflow.new-nation.church")
+    mlflow.set_tracking_uri(mlflow_uri)
     client = MlflowClient()
     
     # Check for registered models
@@ -101,9 +111,9 @@ deploy_model = DockerOperator(
     network_mode='bridge',
     ports=['8080:8080'],
     environment={
-        'MLFLOW_TRACKING_URI': 'https://mlflow.new-nation.church',
-        'MLFLOW_TRACKING_USERNAME': 'user',
-        'MLFLOW_TRACKING_PASSWORD': 'xxx',
+        'MLFLOW_TRACKING_URI': mlflow_uri,
+        'MLFLOW_TRACKING_USERNAME': mlflow_username,
+        'MLFLOW_TRACKING_PASSWORD': mlflow_password,
         'MODEL_NAME': 'Best Randomforest Model',
         'MODEL_VERSION': 'latest',
     },

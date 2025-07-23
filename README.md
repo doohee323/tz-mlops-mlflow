@@ -101,6 +101,8 @@ jupyter kernelspec list
 # 외부 MLflow 서버 설정
 export MLFLOW_TRACKING_URI=https://mlflow.new-nation.church
 export MLFLOW_EXPERIMENT_NAME=production_experiment
+export MLFLOW_TRACKING_USERNAME=user
+export MLFLOW_TRACKING_PASSWORD=xxx
 
 # 외부 Airflow 서버 설정
 export AIRFLOW_API_URL=https://airflow-admin.new-nation.church
@@ -108,72 +110,163 @@ export AIRFLOW_API_URL=https://airflow-admin.new-nation.church
 
 ## 🏃‍♂️ 사용법
 
-### 0. Jupyter 노트북으로 실험
+## 📋 **시나리오 1: 새로운 모델 개발 - 상세 작업 순서**
 
+### **1단계: 환경 설정 및 준비**
+
+#### 1.1 현재 환경 확인
 ```bash
-# 실험용 노트북 실행
+# 현재 디렉토리 및 프로젝트 구조 확인
+pwd
+ls -la
+
+# Python 버전 확인
+python3 --version
+
+# 가상환경 활성화 (있다면)
+source env/bin/activate  # 또는 source venv/bin/activate
+```
+
+#### 1.2 필요한 패키지 설치
+```bash
+# requirements.txt 설치
+pip install -r requirements.txt
+
+# 추가 패키지 설치
+pip install papermill requests
+```
+
+#### 1.3 환경 변수 설정
+```bash
+# MLflow 서버 설정
 export MLFLOW_TRACKING_URI=https://mlflow.new-nation.church
 export MLFLOW_EXPERIMENT_NAME=production_experiment
 export MLFLOW_TRACKING_USERNAME=user
-export MLFLOW_TRACKING_PASSWORD=xxxx
+export MLFLOW_TRACKING_PASSWORD=xxx
+```
 
+### **2단계: 모델 개발 (Jupyter 노트북)**
+
+#### 2.1 노트북 실행
+```bash
+# 실험용 노트북 실행
 jupyter-notebook training/notebooks/get-started.ipynb
 ```
 
-### 1. 모델 훈련
+#### 2.2 노트북에서 수행할 작업
+- 데이터 로드 및 전처리
+- 모델 훈련 및 실험
+- MLflow로 실험 결과 저장
+- 모델 성능 확인 및 하이퍼파라미터 튜닝
+- 최적 모델 선택
 
+### **3단계: 훈련 스크립트 개발**
+
+#### 3.1 훈련 스크립트 실행
 ```bash
-# 훈련 스크립트 실행
 cd training/scripts
 python train_model.py
-
-# 또는 Docker로 훈련
-cd training
-docker build -f docker/Dockerfile -t mlflow-training:latest .
-docker run mlflow-training:latest
 ```
 
-### 2. ML 코드 Docker 이미지 빌드 및 Push
+#### 3.2 훈련 완료 확인사항
+훈련이 완료되면 다음과 같은 메시지들이 나타납니다:
+```
+INFO:__main__:Best Hyperparameters: {...}
+INFO:__main__:Mean Squared Error: X.XXXX
+INFO:__main__:Root Mean Squared Error: X.XXXX
+INFO:__main__:ML pipeline completed successfully!
+```
 
+#### 3.3 MLflow 등록 확인
+- MLflow UI (https://mlflow.new-nation.church) 접속
+- 실험 결과 및 모델 확인
+- 모델이 제대로 등록되었는지 확인
+
+### **4단계: Docker 이미지 빌드**
+
+#### 4.1 훈련용 이미지 빌드
 ```bash
-# 훈련용 이미지
 cd training
 docker build -f docker/Dockerfile -t doohee323/ml_training:latest .
-docker push doohee323/ml_training:latest
+```
 
-# 서빙용 이미지
+#### 4.2 서빙용 이미지 빌드
+```bash
 cd serving
 docker build -f docker/Dockerfile -t doohee323/ml_serving:latest .
+```
+
+#### 4.3 이미지 빌드 확인
+```bash
+# 빌드된 이미지 확인
+docker images | grep doohee323
+
+# 이미지 상세 정보 확인
+docker inspect doohee323/ml_training:latest
+docker inspect doohee323/ml_serving:latest
+```
+
+### **5단계: Docker 이미지 Push**
+
+#### 5.1 Docker Hub 로그인
+```bash
+docker login
+# Username: doohee323
+# Password: [Docker Hub 비밀번호]
+```
+
+#### 5.2 이미지 Push
+```bash
+# 훈련용 이미지 Push
+docker push doohee323/ml_training:latest
+
+# 서빙용 이미지 Push
 docker push doohee323/ml_serving:latest
 ```
 
-### 3. Airflow DAG 선택 및 배포
-
-#### 옵션 A: 훈련 전용 DAG (기존)
+#### 5.3 Push 확인
 ```bash
-# 훈련만 실행하는 DAG
-cp dags/mlflow_job_dag.py tz-airflow-dags/airflow-dags/
+# Docker Hub에서 이미지 확인
+curl https://hub.docker.com/v2/repositories/doohee323/ml_training/tags/
+curl https://hub.docker.com/v2/repositories/doohee323/ml_serving/tags/
 ```
 
-#### 옵션 B: 전체 파이프라인 DAG (권장)
+### **6단계: Airflow Variable 설정**
+
+#### 6.1 Airflow UI 접속
+- URL: https://airflow-admin.new-nation.church/
+- Admin → Variables 메뉴로 이동
+
+#### 6.2 Variable 설정
+다음 Variable들을 추가:
+
+| Key | Value |
+|-----|-------|
+| `MLFLOW_TRACKING_URI` | `https://mlflow.new-nation.church` |
+| `MLFLOW_TRACKING_USERNAME` | `user` |
+| `MLFLOW_TRACKING_PASSWORD` | `xxx` |
+| `MLFLOW_EXPERIMENT_NAME` | `production_experiment` |
+
+### **7단계: Airflow DAG 배포**
+
+#### 7.1 DAG 파일 선택
 ```bash
-# 훈련 → 등록 → 배포 → 서빙 전체 파이프라인
+# 전체 파이프라인 DAG 사용 (권장)
 cp dags/mlflow_complete_pipeline_dag.py tz-airflow-dags/airflow-dags/
-```
 
-#### 옵션 C: 서빙 전용 DAG
-```bash
-# 이미 훈련된 모델을 서빙하는 DAG
+# 또는 훈련 전용 DAG
+cp dags/mlflow_job_dag.py tz-airflow-dags/airflow-dags/
+
+# 또는 서빙 전용 DAG
 cp dags/mlflow_serving_dag.py tz-airflow-dags/airflow-dags/
 ```
 
-### 4. GitOps를 통한 Airflow DAG 배포
-
+#### 7.2 GitOps 배포
 ```bash
-# Airflow DAG 저장소 클론
+# Airflow DAG 저장소 클론 (이미 있다면 생략)
 git clone https://github.com/doohee323/tz-airflow-dags.git
 
-# DAG 파일 복사 (원하는 옵션 선택)
+# DAG 파일 복사
 cp dags/mlflow_complete_pipeline_dag.py tz-airflow-dags/airflow-dags/
 
 # GitOps 배포
@@ -183,15 +276,69 @@ git commit -m 'Add complete MLflow pipeline DAG'
 git push
 ```
 
-### 5. Airflow UI에서 확인 및 실행
+### **8단계: Airflow에서 실행**
 
-- **Airflow UI**: https://airflow-admin.new-nation.church/
-- **DAG 이름**: 
-  - `mlflow_job_dag` (훈련 전용)
-  - `mlflow_complete_pipeline` (전체 파이프라인)
-  - `mlflow_serving` (서빙 전용)
+#### 8.1 Airflow UI에서 DAG 확인
+- URL: https://airflow-admin.new-nation.church/
+- DAG 목록에서 `mlflow_complete_pipeline` 확인
+- DAG가 활성화되어 있는지 확인 (On/Off 토글)
+
+#### 8.2 DAG 실행
+- DAG 페이지에서 "Trigger DAG" 버튼 클릭
+- 실행 파라미터 설정 (필요시)
+- "Trigger" 버튼 클릭
+
+#### 8.3 실행 상태 모니터링
+- Graph View에서 태스크별 실행 상태 확인
+- Log View에서 상세 로그 확인
+- 각 태스크의 성공/실패 상태 모니터링
+
+### **9단계: 결과 확인 및 검증**
+
+#### 9.1 MLflow UI에서 결과 확인
+- URL: https://mlflow.new-nation.church
+- 실험 결과 및 모델 확인
+- 모델 버전 및 성능 메트릭 확인
+
+#### 9.2 API 서비스 확인
+```bash
+# API 서비스가 실행되었는지 확인
+curl http://localhost:8080/health
+
+# 예측 테스트
+curl -X POST http://localhost:8080/predict \
+  -H "Content-Type: application/json" \
+  -d '{"features": [5.1, 3.5, 1.4, 0.2]}'
+
+# 배치 예측 테스트
+curl -X POST http://localhost:8080/predict/batch \
+  -H "Content-Type: application/json" \
+  -d '{"features": [[5.1, 3.5, 1.4, 0.2], [6.3, 3.3, 4.7, 1.6]]}'
+```
+
+#### 9.3 성능 테스트
+```bash
+# API 테스트 스크립트 실행
+cd serving/api
+python test_api.py
+```
+
+### **10단계: 모니터링 및 알림 설정**
+
+#### 10.1 Airflow 알림 설정
+- 실패 시 이메일 알림 설정
+- Slack/Teams 웹훅 설정
+- 성공/실패 알림 설정
+
+#### 10.2 모델 모니터링
+- 모델 성능 지표 추적
+- 데이터 드리프트 감지
+- API 응답 시간 모니터링
+
+---
 
 ## 🔄 MLflow 모델 사용 방법
+
 #### 1. **전체 파이프라인 (mlflow_complete_pipeline_dag.py)**
 ```
 [모델 훈련] → [MLflow 등록] → [모델 배포] → [API 서빙] → [테스트] → [모니터링]
@@ -353,3 +500,45 @@ python test_api.py
 - **배포**: Docker 컨테이너로 배포
 - **서빙**: REST API로 예측 서비스
 - **모니터링**: 성능 및 상태 추적
+
+## 🚨 문제 해결 가이드
+
+### **자주 발생하는 문제들**
+
+#### 1. **MLflow 연결 오류**
+```bash
+# 환경 변수 확인
+echo $MLFLOW_TRACKING_URI
+echo $MLFLOW_TRACKING_USERNAME
+echo $MLFLOW_TRACKING_PASSWORD
+
+# 네트워크 연결 확인
+curl -I https://mlflow.new-nation.church
+```
+
+#### 2. **Docker 빌드 오류**
+```bash
+# Docker 데몬 상태 확인
+docker info
+
+# 이미지 빌드 로그 확인
+docker build -f docker/Dockerfile -t test-image . --progress=plain
+```
+
+#### 3. **Airflow DAG 실행 오류**
+```bash
+# DAG 구문 오류 확인
+python -c "import dags.mlflow_complete_pipeline_dag"
+
+# Airflow Variable 확인
+airflow variables get MLFLOW_TRACKING_URI
+```
+
+#### 4. **API 서비스 오류**
+```bash
+# 포트 사용 확인
+lsof -i :8080
+
+# 컨테이너 로그 확인
+docker logs mlflow_api_service
+```

@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.providers.docker.operators.docker import DockerOperator
+from airflow.models import Variable
 from docker.types import Mount
 import requests
 import json
@@ -35,6 +36,11 @@ dag = DAG(
     tags=['mlflow', 'serving', 'api'],
 )
 
+# Get MLflow configuration from Airflow Variables
+mlflow_uri = Variable.get("MLFLOW_TRACKING_URI")
+mlflow_username = Variable.get("MLFLOW_TRACKING_USERNAME")
+mlflow_password = Variable.get("MLFLOW_TRACKING_PASSWORD")
+
 # Task 1: Deploy Model Service
 deploy_service = DockerOperator(
     task_id='deploy_model_service',
@@ -46,9 +52,9 @@ deploy_service = DockerOperator(
     network_mode='bridge',
     ports=['8080:8080'],
     environment={
-        'MLFLOW_TRACKING_URI': 'https://mlflow.new-nation.church',
-        'MLFLOW_TRACKING_USERNAME': 'user',
-        'MLFLOW_TRACKING_PASSWORD': 'xxx',
+        'MLFLOW_TRACKING_URI': mlflow_uri,
+        'MLFLOW_TRACKING_USERNAME': mlflow_username,
+        'MLFLOW_TRACKING_PASSWORD': mlflow_password,
         'MODEL_NAME': 'Iris Logistic Regression',
         'MODEL_VERSION': 'latest',
     },
