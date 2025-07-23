@@ -113,6 +113,7 @@ mv notebooks/get-started.py docker/get-started.py
 # ML 코드 테스트
 pip3 install mlflow
 python ml_code/get-started.py
+python ml_code/gettingstarted.py
 
 ```
 
