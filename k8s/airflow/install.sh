@@ -53,7 +53,7 @@ exit 0
 
 admin / admin
 
-https://airflow-admin.new-nation.church/connections
+https://airflow-admin.drillquiz.com/connections
 my_postgres_connection	postgres		devops-postgres-postgresql.devops-dev.svc.cluster.local	5432  admin/passwd drillquiz
 nasa_api	http		api.nasa.gov	443 https   passwd
 

@@ -17,7 +17,7 @@ python3 -c "
 import mlflow
 from mlflow.tracking import MlflowClient
 
-mlflow.set_tracking_uri('https://mlflow.new-nation.church')
+mlflow.set_tracking_uri('https://mlflow.drillquiz.com')
 client = MlflowClient()
 
 models = client.search_registered_models()
@@ -67,7 +67,7 @@ spec:
         - containerPort: 8080
         env:
         - name: MLFLOW_TRACKING_URI
-          value: "https://mlflow.new-nation.church"
+          value: "https://mlflow.drillquiz.com"
         - name: MODEL_NAME
           value: "$MODEL_NAME"
         - name: MODEL_VERSION

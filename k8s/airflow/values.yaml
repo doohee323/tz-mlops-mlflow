@@ -207,7 +207,7 @@ ingress:
     pathType: "ImplementationSpecific"
 
     # The hostname for the web Ingress (Deprecated - renamed to `ingress.web.hosts`)
-    host: "airflow-admin.new-nation.church"
+    host: "airflow-admin.drillquiz.com"
 
     # The hostnames or hosts configuration for the web Ingress
     hosts: []
