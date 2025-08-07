@@ -25,7 +25,7 @@ COPY serving/api/ ./api/
 
 # Set environment variables
 ENV PYTHONPATH=/app
-ENV MLFLOW_TRACKING_URI=https://mlflow.new-nation.church
+ENV MLFLOW_TRACKING_URI=https://mlflow.drillquiz.com
 ENV MLFLOW_EXPERIMENT_NAME=production_experiment
 ENV MLFLOW_TRACKING_USERNAME=user
 ENV MLFLOW_TRACKING_PASSWORD=xxx

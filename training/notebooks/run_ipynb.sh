@@ -33,7 +33,7 @@ pip install ipykernel
 python -m ipykernel install --user --name=python3 --display-name "Python 3 (venv)"
 jupyter kernelspec list
 
-export MLFLOW_TRACKING_URI="https://mlflow.new-nation.church"
+export MLFLOW_TRACKING_URI="https://mlflow.drillquiz.com"
 export MLFLOW_TRACKING_USERNAME="user"
 export MLFLOW_TRACKING_PASSWORD="xxx"
 

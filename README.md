@@ -99,13 +99,13 @@ jupyter kernelspec list
 
 ```bash
 # External MLflow server configuration
-export MLFLOW_TRACKING_URI=https://mlflow.new-nation.church
+export MLFLOW_TRACKING_URI=https://mlflow.drillquiz.com
 export MLFLOW_EXPERIMENT_NAME=production_experiment
 export MLFLOW_TRACKING_USERNAME=user
 export MLFLOW_TRACKING_PASSWORD=xxx
 
 # External Airflow server configuration
-export AIRFLOW_API_URL=https://airflow-admin.new-nation.church
+export AIRFLOW_API_URL=https://airflow-admin.drillquiz.com
 ```
 
 ### 3. **Build and Push Docker Images**
@@ -164,7 +164,7 @@ pip install papermill requests
 #### 1.3 Environment Variables Setup
 ```bash
 # MLflow server configuration
-export MLFLOW_TRACKING_URI=https://mlflow.new-nation.church
+export MLFLOW_TRACKING_URI=https://mlflow.drillquiz.com
 export MLFLOW_EXPERIMENT_NAME=production_experiment
 export MLFLOW_TRACKING_USERNAME=user
 export MLFLOW_TRACKING_PASSWORD=xxx
@@ -203,7 +203,7 @@ INFO:__main__:ML pipeline completed successfully!
 ```
 
 #### 3.3 MLflow Registration Verification
-- Access MLflow UI (https://mlflow.new-nation.church)
+- Access MLflow UI (https://mlflow.drillquiz.com)
 - Check experiment results and model
 - Verify that model is properly registered
 
@@ -305,7 +305,7 @@ curl https://hub.docker.com/v2/repositories/doohee323/ml_serving/tags/
 ### **Step 6: Airflow Variable Setup**
 
 #### 6.1 Access Airflow UI
-- URL: https://airflow-admin.new-nation.church/
+- URL: https://airflow-admin.drillquiz.com/
 - Navigate to Admin → Variables menu
 
 #### 6.2 Variable Configuration
@@ -313,7 +313,7 @@ Add the following Variables:
 
 | Key | Value |
 |-----|-------|
-| `MLFLOW_TRACKING_URI` | `https://mlflow.new-nation.church` |
+| `MLFLOW_TRACKING_URI` | `https://mlflow.drillquiz.com` |
 | `MLFLOW_TRACKING_USERNAME` | `user` |
 | `MLFLOW_TRACKING_PASSWORD` | `xxx` |
 | `MLFLOW_EXPERIMENT_NAME` | `production_experiment` |
@@ -350,7 +350,7 @@ git push
 ### **Step 8: Execute in Airflow**
 
 #### 8.1 Verify DAG in Airflow UI
-- URL: https://airflow-admin.new-nation.church/
+- URL: https://airflow-admin.drillquiz.com/
 - Check `mlflow_complete_pipeline` in DAG list
 - Verify DAG is activated (On/Off toggle)
 
@@ -367,7 +367,7 @@ git push
 ### **Step 9: Result Verification and Validation**
 
 #### 9.1 Verify Results in MLflow UI
-- URL: https://mlflow.new-nation.church
+- URL: https://mlflow.drillquiz.com
 - Check experiment results and model
 - Verify model version and performance metrics
 
@@ -525,11 +525,11 @@ python test_api.py
 ## 🔍 External Server Connection Information
 
 ### MLflow Server
-- **URL**: https://mlflow.new-nation.church
+- **URL**: https://mlflow.drillquiz.com
 - **Function**: Experiment tracking, model management, artifact storage
 
 ### Airflow Server
-- **URL**: https://airflow-admin.new-nation.church/
+- **URL**: https://airflow-admin.drillquiz.com/
 - **Function**: Workflow orchestration, DAG execution monitoring
 
 ## 📊 Monitoring

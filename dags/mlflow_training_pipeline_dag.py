@@ -65,7 +65,7 @@ def validate_model(**context):
     
     try:
         # Check if model is registered
-        mlflow_uri = Variable.get("MLFLOW_TRACKING_URI", "https://mlflow.new-nation.church")
+        mlflow_uri = Variable.get("MLFLOW_TRACKING_URI", "https://mlflow.drillquiz.com")
         logger.info(f"✅ MLflow URI: {mlflow_uri}")
         
         # Try to import MLflow
@@ -113,7 +113,7 @@ def check_model_registration(**context):
     logger.info("📋 Checking model registration...")
     
     try:
-        mlflow_uri = Variable.get("MLFLOW_TRACKING_URI", "https://mlflow.new-nation.church")
+        mlflow_uri = Variable.get("MLFLOW_TRACKING_URI", "https://mlflow.drillquiz.com")
         logger.info(f"✅ MLflow URI: {mlflow_uri}")
         
         # Simulation mode for now

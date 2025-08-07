@@ -36,7 +36,7 @@ Average income, central area housing
 
 🎯 Core verification points
 1. MLflow integration validation
-✅ Connection to external MLflow server (https://mlflow.new-nation.church)
+✅ Connection to external MLflow server (https://mlflow.drillquiz.com)
 ✅ Model loading from model registry
 ✅ Model version management system operation
 
