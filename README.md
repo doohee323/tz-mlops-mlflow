@@ -20,22 +20,22 @@ This project is a pipeline that automates and manages ML experiments using exist
 [Airflow UI Trigger and Monitoring]     => CI
 ```
 
-### run.sh Pipeline Flow (각 단계 의미)
+### run.sh Pipeline Flow (Step Descriptions)
 
-`./run.sh` 실행 시 수행되는 단계와 각 단계의 의미:
+Steps performed when running `./run.sh` and what each step does:
 
-| Step | 단계 | 의미 |
-|------|------|------|
-| **1** | Environment Setup | `env/` venv 활성화, Python 버전 확인(Docker 3.12와 동일해야 함), `MLFLOW_TRACKING_URI`·`MLFLOW_EXPERIMENT_NAME` 설정 |
-| **2** | Model Development (Jupyter) | Jupyter Notebook에서 데이터 로딩·전처리·실험·MLflow 로깅 수행. 스크립트에서는 수동 단계로 스킵 후 Enter 대기 |
-| **3** | Training Script Execution | `train_model.py` 실행 — hyperparameter tuning(GridSearchCV), 모델 학습, MLflow에 메트릭·모델 등록, artifact(S3/MinIO) 업로드 |
-| **4** | Docker Image Build | `ml_training`: 학습 코드·환경 이미지, `ml_serving`: Flask API 서빙 이미지 빌드. 이후 `docker images`로 확인 |
-| **5** | Docker Image Push | `docker login` 후 `ml_training`·`ml_serving` 이미지를 Docker Hub에 푸시. Airflow/K8s에서 이 이미지를 pull하여 사용 |
-| **6** | Airflow Variable Setup | 수동 단계. Airflow UI → Admin → Variables에 `MLFLOW_TRACKING_URI`, `MLFLOW_EXPERIMENT_NAME` 추가. DAG가 이 변수를 참조 |
-| **7** | Airflow DAG Deployment | `tz-airflow-dags` 레포 클론(없을 때), `mlflow_training_pipeline_dag.py` 복사, git add/commit/push로 DAG 레포에 배포. Airflow가 레포 sync로 DAG 로드 |
-| **8** | Execute in Airflow | 수동 단계. Airflow UI에서 `mlflow_training_pipeline` DAG Trigger. K8s에서 training/serving 파이프라인 실행 |
-| **9** | Result Verification | MLflow UI에서 실험·모델 확인, API health 체크(`localhost:8080`), `test_api.py`로 예측 테스트. API는 로컬/서버 상주 시에만 접근 가능 |
-| **10** | Monitoring | 수동. Airflow 알림, 모델 모니터링, drift 탐지 등 운영 설정 |
+| Step | Stage | Description |
+|------|-------|-------------|
+| **1** | Environment Setup | Activate `env/` venv, verify Python version (must match Docker 3.12), set `MLFLOW_TRACKING_URI` and `MLFLOW_EXPERIMENT_NAME` |
+| **2** | Model Development (Jupyter) | Data loading, preprocessing, experiments, and MLflow logging in Jupyter Notebook. Script skips this manual step and waits for Enter |
+| **3** | Training Script Execution | Run `train_model.py` — hyperparameter tuning (GridSearchCV), model training, register metrics/model in MLflow, upload artifacts (S3/MinIO) |
+| **4** | Docker Image Build | `ml_training`: training code and environment image; `ml_serving`: Flask API serving image. Verify with `docker images` |
+| **5** | Docker Image Push | After `docker login`, push `ml_training` and `ml_serving` to Docker Hub. Airflow/K8s pull these images to run pipelines |
+| **6** | Airflow Variable Setup | Manual step. Add `MLFLOW_TRACKING_URI`, `MLFLOW_EXPERIMENT_NAME` in Airflow UI → Admin → Variables. DAGs reference these variables |
+| **7** | Airflow DAG Deployment | Clone `tz-airflow-dags` repo (if missing), copy `mlflow_training_pipeline_dag.py`, deploy via git add/commit/push. Airflow loads DAGs via repo sync |
+| **8** | Execute in Airflow | Manual step. Trigger `mlflow_training_pipeline` DAG in Airflow UI. Training/serving pipeline runs on K8s |
+| **9** | Result Verification | Check experiments and models in MLflow UI, API health check (`localhost:8080`), prediction test with `test_api.py`. API is reachable only when running locally or on server |
+| **10** | Monitoring | Manual. Configure Airflow alerts, model monitoring, drift detection, and other operations |
 
 ## 📁 Project Structure
 
