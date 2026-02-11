@@ -20,6 +20,23 @@ This project is a pipeline that automates and manages ML experiments using exist
 [Airflow UI Trigger and Monitoring]     => CI
 ```
 
+### run.sh Pipeline Flow (각 단계 의미)
+
+`./run.sh` 실행 시 수행되는 단계와 각 단계의 의미:
+
+| Step | 단계 | 의미 |
+|------|------|------|
+| **1** | Environment Setup | `env/` venv 활성화, Python 버전 확인(Docker 3.12와 동일해야 함), `MLFLOW_TRACKING_URI`·`MLFLOW_EXPERIMENT_NAME` 설정 |
+| **2** | Model Development (Jupyter) | Jupyter Notebook에서 데이터 로딩·전처리·실험·MLflow 로깅 수행. 스크립트에서는 수동 단계로 스킵 후 Enter 대기 |
+| **3** | Training Script Execution | `train_model.py` 실행 — hyperparameter tuning(GridSearchCV), 모델 학습, MLflow에 메트릭·모델 등록, artifact(S3/MinIO) 업로드 |
+| **4** | Docker Image Build | `ml_training`: 학습 코드·환경 이미지, `ml_serving`: Flask API 서빙 이미지 빌드. 이후 `docker images`로 확인 |
+| **5** | Docker Image Push | `docker login` 후 `ml_training`·`ml_serving` 이미지를 Docker Hub에 푸시. Airflow/K8s에서 이 이미지를 pull하여 사용 |
+| **6** | Airflow Variable Setup | 수동 단계. Airflow UI → Admin → Variables에 `MLFLOW_TRACKING_URI`, `MLFLOW_EXPERIMENT_NAME` 추가. DAG가 이 변수를 참조 |
+| **7** | Airflow DAG Deployment | `tz-airflow-dags` 레포 클론(없을 때), `mlflow_training_pipeline_dag.py` 복사, git add/commit/push로 DAG 레포에 배포. Airflow가 레포 sync로 DAG 로드 |
+| **8** | Execute in Airflow | 수동 단계. Airflow UI에서 `mlflow_training_pipeline` DAG Trigger. K8s에서 training/serving 파이프라인 실행 |
+| **9** | Result Verification | MLflow UI에서 실험·모델 확인, API health 체크(`localhost:8080`), `test_api.py`로 예측 테스트. API는 로컬/서버 상주 시에만 접근 가능 |
+| **10** | Monitoring | 수동. Airflow 알림, 모델 모니터링, drift 탐지 등 운영 설정 |
+
 ## 📁 Project Structure
 
 ```
@@ -44,10 +61,21 @@ tz-mlops-mlflow/
 │       └── mlflow_utils.py      # MLflow utilities
 ├── dags/                        # Airflow DAG
 │   ├── mlflow_job_dag.py        # Existing training-only DAG
-│   ├── mlflow_complete_pipeline_dag.py  # Complete pipeline DAG
+│   ├── mlflow_training_pipeline_dag.py  # Complete pipeline DAG
 │   └── mlflow_serving_dag.py    # Serving-only DAG
-├── k8s/                         # k8s airflow, mlflow installation reference
-├── requirements.txt             # Python package dependencies
+├── k8s/                         # k8s installation (PostgreSQL, MinIO, MLflow, Airflow, Jupyter)
+│   ├── postgresql/              # PostgreSQL for MLflow
+│   ├── minio/                   # MinIO for MLflow artifacts
+│   ├── mlflow/                  # MLflow tracking server
+│   ├── airflow/                 # Apache Airflow
+│   ├── jupyter/                 # JupyterHub
+│   └── project.example          # Config example for /root/.k8s/project
+├── scripts/
+│   └── load-config.sh           # prop function, config loader
+├── run.sh                       # MLOps pipeline runner (README Scenario 1)
+├── bootstrap.sh                 # One-shot infrastructure install
+├── requirements.txt             # Python package dependencies (MLflow, training)
+├── requirements-airflow.txt     # Airflow for DAG dev (optional, separate venv)
 └── README.md                    # Project documentation
 ```
 
@@ -67,23 +95,48 @@ tz-mlops-mlflow/
 - **Orchestration**: Apache Airflow (external server)
 - **Containerization**: Docker
 - **Web Framework**: Flask
-- **Language**: Python 3.10+
+- **Language**: Python 3.12 (matches Docker)
 
 ## 🔧 Environment Setup
 
+### 0. Bootstrap (K8s infrastructure)
+
+One-shot install of PostgreSQL, MinIO, MLflow, Airflow. Config: `/root/.k8s/project`.
+
+```bash
+# 1. Create config: cp k8s/project.example /root/.k8s/project
+# 2. Edit /root/.k8s/project with your values
+# 3. Run bootstrap
+./bootstrap.sh
+```
+
+| Component | Skip if exists | Namespace |
+|-----------|----------------|-----------|
+| Ingress NGINX | ✅ | default |
+| PostgreSQL | ✅ | devops-dev |
+| MinIO | ✅ | devops |
+| MLflow | — | mlflow |
+| Airflow | — | airflow |
+| Jupyter | ✅ | jupyterhub |
+
 ### 1. Create Working Environment
+
+Python version must match Docker (see `training/docker/Dockerfile`). Use `scripts/ensure-venv.sh`:
 
 ```bash
 cd tz-mlops-mlflow
-rm -Rf venv
-pyenv install 3.10.13
-pyenv local 3.10.13
-python -m venv env
+./scripts/ensure-venv.sh --create   # Creates env/ with Docker Python version
 source env/bin/activate
-python3 -V  # Python 3.10.x
+pip install -r requirements.txt
+pip install papermill
+```
 
-pip3 install -r requirements.txt
-pip3 install papermill
+**Airflow DAG development** (optional, separate from main env due to dependency conflicts):
+
+```bash
+python -m venv env-airflow
+source env-airflow/bin/activate
+pip install -r requirements-airflow.txt
 ```
 
 ### 2. Jupyter Kernel Setup (Optional)
@@ -98,13 +151,11 @@ jupyter kernelspec list
 ### 3. Environment Variables Setup
 
 ```bash
-# External MLflow server configuration
+# MLflow (auth disabled in default setup)
 export MLFLOW_TRACKING_URI=https://mlflow.drillquiz.com
 export MLFLOW_EXPERIMENT_NAME=production_experiment
-export MLFLOW_TRACKING_USERNAME=user
-export MLFLOW_TRACKING_PASSWORD=xxx
 
-# External Airflow server configuration
+# Airflow
 export AIRFLOW_API_URL=https://airflow-admin.drillquiz.com
 ```
 
@@ -135,39 +186,41 @@ docker push doohee323/ml_training:latest
 
 ## 🏃‍♂️ Usage
 
+### **Quick Start: run.sh (Recommended)**
+
+`run.sh` automates Scenario 1 (New Model Development) step-by-step. Stops on first error.
+
+```bash
+# Prerequisites: env/ exists, pip install -r requirements.txt done
+./run.sh
+```
+
+| Option | Description |
+|--------|-------------|
+| `./run.sh` | Interactive: prompts for manual steps (Jupyter, Airflow UI, git push) |
+| `NON_INTERACTIVE=1 ./run.sh` | Skip prompts (for CI); manual steps still need separate handling |
+
+**Steps executed**: Environment check → Training script → Docker build → Docker push → DAG copy & git commit (with confirmation). Steps 2, 6, 8 require manual actions (Jupyter, Airflow Variables, DAG trigger).
+
+---
+
 ## 📋 **Scenario 1: New Model Development - Detailed Step-by-Step Guide**
 
 ### **Step 1: Environment Setup and Preparation**
 
-#### 1.1 Current Environment Check
+> See **1. Create Working Environment** above for initial setup (`ensure-venv.sh`, `pip install -r requirements.txt`).
+
+#### 1.1 Activate and Verify
 ```bash
-# Check current directory and project structure
-pwd
-ls -la
-
-# Check Python version
-python3 --version
-
-# Activate virtual environment (if exists)
-source env/bin/activate  # or source venv/bin/activate
+source env/bin/activate
+python --version   # Should match Docker (3.12)
 ```
 
-#### 1.2 Install Required Packages
+#### 1.2 Environment Variables (optional)
 ```bash
-# Install requirements.txt
-pip install -r requirements.txt
-
-# Install additional packages
-pip install papermill requests
-```
-
-#### 1.3 Environment Variables Setup
-```bash
-# MLflow server configuration
-export MLFLOW_TRACKING_URI=https://mlflow.drillquiz.com
+# MLflow (auth disabled in default bootstrap)
+export MLFLOW_TRACKING_URI=https://mlflow.drillquiz.com   # or from .k8s/project domain
 export MLFLOW_EXPERIMENT_NAME=production_experiment
-export MLFLOW_TRACKING_USERNAME=user
-export MLFLOW_TRACKING_PASSWORD=xxx
 ```
 
 ### **Step 2: Model Development (Jupyter Notebook)**
@@ -175,6 +228,7 @@ export MLFLOW_TRACKING_PASSWORD=xxx
 #### 2.1 Run Notebook
 ```bash
 # Run experiment notebook
+# pip install jupyter notebook
 jupyter-notebook training/notebooks/get-started.ipynb
 ```
 
@@ -211,14 +265,17 @@ INFO:__main__:ML pipeline completed successfully!
 
 #### 4.1 Build Training Image
 ```bash
-cd training
-docker build -f docker/Dockerfile -t doohee323/ml_training:latest .
+# cd tz-mlops-mlflow
+# docker build -f training/docker/Dockerfile -t doohee323/ml_training:latest .
+bash ./training/ml_training.sh
+
 ```
 
 #### 4.2 Build Serving Image
 ```bash
-cd serving
-docker build -f docker/Dockerfile -t doohee323/ml_serving:latest .
+#cd tz-mlops-mlflow
+docker rmi doohee323/ml_serving:latest
+docker build -f serving/docker/Dockerfile -t doohee323/ml_serving:latest .
 ```
 
 #### 4.3 Verify Image Build
@@ -309,27 +366,39 @@ curl https://hub.docker.com/v2/repositories/doohee323/ml_serving/tags/
 - Navigate to Admin → Variables menu
 
 #### 6.2 Variable Configuration
-Add the following Variables:
+Add the following Variables (required for `mlflow_training_pipeline_dag`):
+
+**Option A: Import JSON file (recommended)**
+1. Airflow UI → **Admin** → **Variables** → **Import Variables**
+2. Upload `k8s/airflow/airflow-variables.json`
+3. Select conflict resolution (Overwrite / Skip / Fail) and import
+
+**Option B: Add manually**
 
 | Key | Value |
 |-----|-------|
-| `MLFLOW_TRACKING_URI` | `https://mlflow.drillquiz.com` |
+| `MLFLOW_TRACKING_URI` | `https://mlflow.${domain}` (e.g. `https://mlflow.drillquiz.com`) |
+| `MLFLOW_EXPERIMENT_NAME` | `production_experiment` |
+
+Optional (if MLflow auth enabled):
+
+| Key | Value |
+|-----|-------|
 | `MLFLOW_TRACKING_USERNAME` | `user` |
 | `MLFLOW_TRACKING_PASSWORD` | `xxx` |
-| `MLFLOW_EXPERIMENT_NAME` | `production_experiment` |
 
 ### **Step 7: Airflow DAG Deployment**
 
 #### 7.1 Select DAG File
 ```bash
 # Use complete pipeline DAG (recommended)
-cp dags/mlflow_complete_pipeline_dag.py tz-airflow-dags/airflow-dags/
+cp -Rf dags/mlflow_training_pipeline_dag.py tz-airflow-dags/airflow-dags/
 
 # Or training-only DAG
-cp dags/mlflow_job_dag.py tz-airflow-dags/airflow-dags/
+cp -Rf dags/mlflow_serving_dag.py tz-airflow-dags/airflow-dags/
 
 # Or serving-only DAG
-cp dags/mlflow_serving_dag.py tz-airflow-dags/airflow-dags/
+cp -Rf dags/mlflow_serving_dag.py tz-airflow-dags/airflow-dags/
 ```
 
 #### 7.2 GitOps Deployment
@@ -338,11 +407,11 @@ cp dags/mlflow_serving_dag.py tz-airflow-dags/airflow-dags/
 git clone https://github.com/doohee323/tz-airflow-dags.git
 
 # Copy DAG file
-cp dags/mlflow_complete_pipeline_dag.py tz-airflow-dags/airflow-dags/
+cp -Rf dags/mlflow_training_pipeline_dag.py tz-airflow-dags/airflow-dags/
 
 # GitOps deployment
 cd tz-airflow-dags
-git add airflow-dags/mlflow_complete_pipeline_dag.py
+git add airflow-dags/mlflow_training_pipeline_dag.py
 git commit -m 'Add complete MLflow pipeline DAG'
 git push
 ```
@@ -416,7 +485,7 @@ python test_api.py
 
 ## 🔄 MLflow Model Usage
 
-#### 1. **Full Pipeline (mlflow_complete_pipeline_dag.py)**
+#### 1. **Full Pipeline (mlflow_training_pipeline_dag.py)**
 ```
 [Model Training] → [MLflow Registration] → [Model Deployment] → [API Serving] → [Testing] → [Monitoring]
 ```

@@ -1,0 +1,4 @@
+# Airflow for local DAG development (optional). k8s runs Airflow via Helm.
+# Use separate venv: python -m venv env-airflow && source env-airflow/bin/activate
+apache-airflow>=3.1.0
+apache-airflow-providers-docker

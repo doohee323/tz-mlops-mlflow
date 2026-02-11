@@ -1,62 +1,73 @@
 #!/usr/bin/env bash
+# Airflow (namespace: airflow)
 
-# install airflow
+set -e
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${REPO_ROOT}/scripts/load-config.sh"
 
-source /root/.bashrc
-#bash /vagrant/tz-local/resource/airflow/run.sh
-cd /vagrant/tz-local/resource/airflow
-
-#set -x
+cd "${REPO_ROOT}/k8s/airflow"
 shopt -s expand_aliases
 alias k='kubectl --kubeconfig ~/.kube/config'
 
 k8s_project=$(prop 'project' 'project')
 k8s_domain=$(prop 'project' 'domain')
+[[ -z "${k8s_domain}" ]] && k8s_domain="local"
 admin_password=$(prop 'project' 'admin_password')
 github_id=$(prop 'project' 'github_id')
 github_token=$(prop 'project' 'github_token')
+webserver_secret=$(prop 'project' 'webserver_secret')
+[[ -z "${webserver_secret}" ]] && webserver_secret='topzone!323'
 NS=airflow
 
-#helm uninstall airflow -n ${NS}
-#kubectl delete pod airflow-redis-0 --grace-period=0 --force -n airflow
-#kubectl delete pod airflow-worker-0 --grace-period=0 --force -n airflow
-#kubectl delete ns ${NS}
-kubectl create ns ${NS}
+kubectl create namespace ${NS} --dry-run=client -o yaml | kubectl apply -f -
 
-kubectl delete secret git-credentials
+kubectl delete secret git-credentials -n ${NS} 2>/dev/null || true
 kubectl create secret generic git-credentials \
-  --from-literal=GIT_SYNC_USERNAME=${github_id} \
-  --from-literal=GIT_SYNC_PASSWORD=${github_token} \
-  --from-literal=GITSYNC_USERNAME=${github_id} \
-  --from-literal=GITSYNC_PASSWORD=${github_token} \
-  -n airflow
+  --from-literal=GIT_SYNC_USERNAME="${github_id}" \
+  --from-literal=GIT_SYNC_PASSWORD="${github_token}" \
+  --from-literal=GITSYNC_USERNAME="${github_id}" \
+  --from-literal=GITSYNC_PASSWORD="${github_token}" \
+  -n ${NS}
 
+kubectl delete secret airflow-webserver-secret -n ${NS} 2>/dev/null || true
 kubectl create secret generic airflow-webserver-secret \
-  --from-literal=webserver-secret-key='topzone!323' \
-  -n airflow
+  --from-literal=webserver-secret-key="${webserver_secret}" \
+  -n ${NS}
 
-helm repo add apache-airflow https://airflow.apache.org
-#helm show values apache-airflow/airflow > values.yaml
-#kubectl cp values.yaml devops-dev/bastion:/vagrant/tz-local/resource/airflow
-#--reuse-values
-helm upgrade --install --reuse-values airflow apache-airflow/airflow -n ${NS} -f values.yaml
+helm repo add apache-airflow https://airflow.apache.org 2>/dev/null || true
+helm repo update
 
-#echo Fernet Key: $(kubectl get secret --namespace airflow airflow-fernet-key -o jsonpath="{.data.fernet-key}" | base64 --decode)
+# Use devops PostgreSQL (devops-dev NS) + airflow-redis if present
+PG_HOST="devops-postgres-postgresql.devops-dev.svc.cluster.local"
+[[ -z "${admin_password}" ]] && admin_password='DevOps!323'
+EXTRA_SET=""
+echo "  → Using PostgreSQL: ${PG_HOST}"
+EXTRA_SET="${EXTRA_SET} --set postgresql.enabled=false"
+EXTRA_SET="${EXTRA_SET} --set data.metadataConnection.host=${PG_HOST}"
+EXTRA_SET="${EXTRA_SET} --set data.metadataConnection.port=5432"
+EXTRA_SET="${EXTRA_SET} --set data.metadataConnection.user=admin"
+EXTRA_SET="${EXTRA_SET} --set data.metadataConnection.pass=${admin_password}"
+EXTRA_SET="${EXTRA_SET} --set data.metadataConnection.protocol=postgresql"
+EXTRA_SET="${EXTRA_SET} --set data.metadataConnection.db=airflow"
+EXTRA_SET="${EXTRA_SET} --set data.metadataConnection.sslmode=disable"
+# Use Redis in devops NS (e.g. redis-master from bitnami/redis, or redis)
+REDIS_NS="devops"
+REDIS_HOST="redis-master.${REDIS_NS}.svc.cluster.local"
+if ! k get svc redis-master -n ${REDIS_NS} &>/dev/null; then
+  REDIS_HOST="redis.${REDIS_NS}.svc.cluster.local"
+fi
+echo "  → Using Redis: ${REDIS_HOST}"
+EXTRA_SET="${EXTRA_SET} --set redis.enabled=false"
+REDIS_PASS=$(k get secret redis -n ${REDIS_NS} -o jsonpath='{.data.redis-password}' 2>/dev/null | base64 -d 2>/dev/null || k get secret redis-master -n ${REDIS_NS} -o jsonpath='{.data.redis-password}' 2>/dev/null | base64 -d 2>/dev/null || true)
+if [[ -n "${REDIS_PASS}" ]]; then
+  EXTRA_SET="${EXTRA_SET} --set data.brokerUrl=redis://:${REDIS_PASS}@${REDIS_HOST}:6379/0"
+else
+  EXTRA_SET="${EXTRA_SET} --set data.brokerUrl=redis://${REDIS_HOST}:6379/0"
+fi
 
-cp -Rf airflow-ingress.yaml airflow-ingress.yaml_bak
-sed -ie "s/k8s_project/${k8s_project}/g" airflow-ingress.yaml_bak
-sed -ie "s/k8s_domain/${k8s_domain}/g" airflow-ingress.yaml_bak
-#kubectl delete -f airflow-ingress.yaml_bak -n airflow
-kubectl apply -f airflow-ingress.yaml_bak -n airflow
+helm upgrade --install --reuse-values airflow apache-airflow/airflow -n ${NS} -f values.yaml ${EXTRA_SET}
 
-exit 0
+# Ingress (also applied by bootstrap)
+sed "s/k8s_domain/${k8s_domain}/g" airflow-ingress.yaml | kubectl apply -f - -n ${NS}
 
-admin / admin
-
-https://airflow-admin.drillquiz.com/connections
-my_postgres_connection	postgres		devops-postgres-postgresql.devops-dev.svc.cluster.local	5432  admin/passwd drillquiz
-nasa_api	http		api.nasa.gov	443 https   passwd
-
-
-
-
+echo "Airflow installed. URL: https://airflow-admin.${k8s_domain}"

@@ -1,8 +1,8 @@
-# MLflow and ML libraries
-mlflow==2.8.1
-scikit-learn==1.3.2
-pandas==2.1.4
-numpy==1.24.3
+# MLflow and ML libraries (Python 3.10–3.13; use Python 3.10 if install fails)
+mlflow>=2.8.1,<3
+scikit-learn>=1.3.2,<2
+pandas>=2.1.4
+numpy>=1.24.3,<3
 
 # Web framework for API
 flask==3.0.0
@@ -18,9 +18,8 @@ jupyter==1.0.0
 ipykernel==6.27.1
 notebook==7.0.6
 
-# Airflow and orchestration
-apache-airflow==2.7.3
-apache-airflow-providers-docker==3.9.0
+# Airflow: optional, for DAG dev. k8s runs Airflow via Helm.
+# Install separately: pip install -r requirements-airflow.txt
 
 # Database and storage
 sqlalchemy==2.0.23

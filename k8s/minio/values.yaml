@@ -1,0 +1,15 @@
+## MinIO Helm Chart Values (official MinIO Helm chart 5.4+)
+## Placeholders: k8s_project, basic_password (replaced by install.sh)
+
+rootUser: "k8s_project"
+rootPassword: "basic_password"
+
+replicas: 1
+
+persistence:
+  storageClass: ""
+  size: 5Gi
+
+resources:
+  requests:
+    memory: 512Mi

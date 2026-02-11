@@ -1,25 +1,16 @@
-# MLflow and ML libraries
-mlflow==2.8.1
-scikit-learn==1.3.2
-pandas==2.1.4
-numpy==1.24.3
+# Serving image: Python 3.12 compatible (matches serving/docker/Dockerfile)
+mlflow>=2.8.1,<3
+scikit-learn>=1.3.2,<2
+pandas>=2.1.4
+numpy>=1.26.0,<3
 
-# Web framework for API
-flask==3.0.0
-requests==2.31.0
-
-# Data visualization (optional for serving)
-matplotlib==3.8.2
-seaborn==0.13.0
-plotly==5.17.0
+flask>=2.2,<4
+requests>=2.31.0
 
 # Database and storage
-sqlalchemy==2.0.23
-psycopg2-binary==2.9.9
+sqlalchemy>=2.0
+psycopg2-binary>=2.9
 
 # Utilities
-python-dotenv==1.0.0
-pyyaml==6.0.1
-
-# Development and testing (optional for production)
-pytest==7.4.3
+python-dotenv>=1.0
+pyyaml>=6.0

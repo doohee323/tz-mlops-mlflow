@@ -1,0 +1,16 @@
+# /root/.k8s/project (or REPO_ROOT/.k8s/project)
+# Copy to .k8s/project and fill in values.
+# Used by bootstrap.sh and install scripts via prop function.
+
+[project]
+project = drillquiz
+domain = drillquiz.com
+admin_password = DevOps!323
+basic_password = ChangeMeSecurePassword123
+github_id = your-github-username
+github_token = your-github-token-or-pat
+webserver_secret = topzone!323
+
+# MLflow: MinIO S3 credentials for artifact storage
+# minio_access_key = your-minio-access-key
+# minio_secret_key = your-minio-secret-key

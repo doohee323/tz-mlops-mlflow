@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minio-ingress
+  namespace: devops
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-ssl-verify: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: minio.devops.k8s_project.k8s_domain
+    http:
+      paths:
+      - path: /
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: minio-console
+            port:
+              number: 9001
+  tls:
+  - hosts:
+    - minio.devops.k8s_project.k8s_domain
+    secretName: minio-ingress-tls
