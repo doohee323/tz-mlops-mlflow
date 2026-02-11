@@ -3,3 +3,5 @@ output.ipynb
 /.idea/
 tz-airflow-dags
 mlruns
+refer/
+.k8s/

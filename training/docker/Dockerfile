@@ -1,5 +1,5 @@
-# Use Python 3.9 slim image as base
-FROM python:3.9-slim
+# Use Python 3.12 slim image as base
+FROM python:3.12-slim
 
 # Set working directory
 WORKDIR /app
@@ -15,8 +15,9 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements first for better caching
 COPY training/requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies (upgrade pip/setuptools for wheel builds)
+RUN pip install --no-cache-dir -U pip setuptools wheel \
+    && pip install --no-cache-dir -r requirements.txt
 
 # Copy shared utilities first
 COPY shared/ ./shared/
@@ -34,8 +35,6 @@ RUN python scripts/prepare_data.py
 ENV PYTHONPATH=/app
 ENV MLFLOW_TRACKING_URI=https://mlflow.drillquiz.com
 ENV MLFLOW_EXPERIMENT_NAME=production_experiment
-ENV MLFLOW_TRACKING_USERNAME=user
-ENV MLFLOW_TRACKING_PASSWORD=xxx
 # Suppress Git warnings in MLflow
 ENV GIT_PYTHON_REFRESH=quiet
 
